@@ -1,0 +1,187 @@
+import tkinter as tk
+import os
+from datetime import date
+
+# -- Main Window --
+
+if tk._default_root is not None:
+    tk._default_root.destroy()
+
+window = tk.Tk()
+window.geometry("550x450")
+window.title("Habit + Mood Tracker")
+window.config(bg="#BDE1FF")
+
+habits = []
+habit_vars = []
+habit_widgets = []
+
+# -- Interior box --
+
+frame = tk.Frame(window, bg="#9FD2FC")
+frame.pack(fill="both", expand=True, padx=10, pady=10)
+
+# -- Create habit row --
+
+def create_habit_row(name, var_value=0):
+    row = tk.Frame(frame, bg="#9FD2FC")
+    row.pack(fill="x", pady=2)
+    
+    var =tk.IntVar(window, value=var_value)
+    
+    check = tk.Checkbutton(row, text=name, variable=var, bg="#9FD2FC")
+    check.pack(side="left", anchor="w")
+    
+    habit_widgets.append((row, check, var, name))
+    habits.append(name)
+    habit_vars.append(var)
+    
+    return row, check, var
+
+# -- Adding Custom Habits --
+
+def add_habit():
+    name = habit_entry.get().strip()
+    if name == "":
+        return
+    
+    create_habit_row(name)
+    habit_entry.delete(0, tk.END)
+    
+# -- Saving Data --
+
+def save_habits():
+    with open("habits.txt", "w") as f:
+        for (row, check, var, name) in habit_widgets:
+            f.write(f"{name}| {var.get()}\n")
+            
+    save_mood()
+            
+# -- Load saved habits --
+
+def load_habits():
+    if not os.path.exists("habits.txt"):
+        return
+    
+    with open("habits.txt", "r") as f:
+        lines = f.readlines()
+        
+    for line in lines:
+        if "| " in line:
+            name, val = line.strip().split("|")
+            create_habit_row(name, int(val))
+            
+def update_habit_display():
+    for row, check, var, name in habit_widgets:
+        row.pack_forget()
+        row.pack(fill="x", pady=2)
+            
+# -- Delete habit --
+
+delete_mode = False
+
+def toggle_delete_mode():
+    global delete_mode
+    delete_mode = not delete_mode
+    
+    for (row, check, var, name) in habit_widgets:
+        for widget in row.pack_slaves():
+            if isinstance(widget, tk.Button) and widget.cget("text") == "Delete":
+                widget.destroy()
+            
+    if delete_mode:
+        
+        for (row, check, var, name) in habit_widgets:
+        
+            del_btn = tk.Button(row, text="Delete", bg="#ff6b6b", fg="black", command=lambda r=row, n=name: delete_habit(r, n))
+            del_btn.pack(side="right", padx=5)
+        
+def delete_habit(row, name):
+    row.destroy()
+    
+    for i, (r, check, var, nm) in enumerate(habit_widgets):
+        if r == row:
+            habit_widgets.pop(i)
+            habit.pop(i)
+            habit_vars.pop(i)
+            break
+    for i, h in enumerate(habit_widgets):
+        if r ==row:
+            habit_widgets.pop(i)
+            break
+    update_habit_display()
+
+# -- Mood tracker --
+
+mood_list = ["Happy", "Neutral", "Sad"]
+mood_var = tk.StringVar(value="Select Mood")
+
+def update_mood_menu():
+    menu = mood_menu["menu"]
+    menu.delete(0, "end")
+    for mood in mood_list:
+        menu.add_command(label=mood, command=lambda m=mood: mood_var.set(m))
+        
+def add_custom_mood():
+    new_mood = custom_mood_entry.get().strip()
+    if new_mood and new_mood not in mood_list:
+        mood_list.append(new_mood)
+        update_mood_menu()
+        custom_mood_entry.delete(0, tk.END)
+        
+def save_mood():
+    today = str(date.today())
+    mood = mood_var.get()
+    with open("mood.txt", "a") as f:
+        f.write(f"{today}|{mood}\n")
+
+# -- Past moods --
+
+mood_display_frame = tk.Frame(frame, bg="#9FD2FC")
+mood_display_frame.pack(pady=10, fill="both", expand=True)
+
+def display_moods():
+    for widget in mood_display_frame.winfo_children():
+        widget.destroy()
+    if not os.path.exists("mood.txt"):
+        return
+    with open("mood.txt", "r") as f:
+        lines = f.readlines()
+        
+    for line in lines[-10:]:
+        lbl = tk.Label(mood_display_frame, text=line.strip(), bg="#9FD2FC")
+        lbl.pack(anchor="w")
+
+# -- Mood widget --
+
+mood_label = tk.Label(frame, text="Today's Mood:", bg="#9FD2FC")
+mood_label.pack(pady=(10,0))
+
+mood_menu = tk.OptionMenu(frame, mood_var, *mood_list)
+mood_menu.config(bg="white")
+mood_menu.pack(pady=5)
+
+custom_mood_entry = tk.Entry(frame, bg="white")
+custom_mood_entry.pack(pady=3)
+
+tk.Button(frame, text="Add Custom Mood", command=add_custom_mood, bg="#6BB6FF", fg="black").pack(pady=3)
+
+# -- GUI --
+            
+habit_entry = tk.Entry(frame)
+habit_entry.pack(pady=5)
+
+tk.Button(frame, text="Add Habit", command=add_habit, bg="#6BB677", fg="black").pack(pady=5)
+
+tk.Button(frame, text="Save", command=save_habits, bg="#6BB677", fg="black").pack(pady=5)
+
+tk.Button(frame, text="Delete Habit", command=toggle_delete_mode, bg="#FF7676", fg="black").pack(pady=5)
+
+
+# -- Loading saved after closing --
+
+load_habits()
+update_mood_menu()
+display_moods()
+
+window.mainloop()
